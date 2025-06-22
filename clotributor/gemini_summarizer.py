@@ -4,17 +4,22 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# ─── Load & configure Gemini API key ─────────────────────────────────────────
+# Load & configure your Gemini API key
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
     raise RuntimeError("🔑 GOOGLE_API_KEY not set in .env")
 genai.configure(api_key=api_key)
-# ──────────────────────────────────────────────────────────────────────────────
 
 def summarize_issue(issue):
     """
     Uses Gemini to summarize an issue and suggest a beginner-friendly solution path.
+
+    Args:
+        issue (dict): Dictionary with 'title', 'link', 'metadata', and 'difficulty'.
+
+    Returns:
+        dict: Original issue dict with 'summary' and 'suggested_solution' added.
     """
     prompt = f"""
 You are an experienced open-source contributor helping newcomers understand
@@ -36,15 +41,15 @@ Suggested Approach:
 ---
 
 Title: {issue['title']}
-Description: {issue['description']}
+Metadata: {issue['metadata']}
 Link: {issue['link']}
 """
 
     try:
-        # <-- use one of the valid models you listed
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        # Use one of the models that support generateContent
+        model    = genai.GenerativeModel('models/gemini-1.5-flash')
         response = model.generate_content(prompt)
-        content = response.text.strip()
+        content  = response.text.strip()
 
         # parse into summary & suggestion
         summary, suggestion = content, ""

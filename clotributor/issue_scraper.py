@@ -7,11 +7,11 @@ from selenium.webdriver.support import expected_conditions as EC
 def get_top_issues(driver, count=5):
     """
     Scrapes top N new issues from clotributor.dev.
-    Returns only real GitHub issue links, plus title, tags, and difficulty.
+    Returns only real GitHub issue links, plus title, metadata, and difficulty.
     """
     driver.get("https://clotributor.dev")
 
-    # wait for cards
+    # wait for cards to appear
     WebDriverWait(driver, 15).until(
         EC.presence_of_all_elements_located(
             (By.CSS_SELECTOR, "div[class*='Card_projectWrapper'], div[role='listitem']")
@@ -29,40 +29,42 @@ def get_top_issues(driver, count=5):
         if len(issues) >= count:
             break
 
-        # try precise selectors first
+        # must be a GitHub issue link
         try:
             link_el = card.find_element(By.CSS_SELECTOR, "a[href*='/issues/']")
             link = link_el.get_attribute("href")
         except:
-            # skip any card without an /issues/ link
             continue
-
         if link in seen:
             continue
         seen.add(link)
 
-        # title
+        # 1) **Issue Title** — use the Card_issueDesc element
         try:
             title_el = card.find_element(
                 By.CSS_SELECTOR,
-                "div[class*='truncateWrapper'], h3, span[class*='Card_name']"
+                "div[class*='Card_issueDesc'], div[class*='Card_issueDesc_']"
             )
             title = title_el.text.strip()
         except:
-            title = link.split("/")[-1]  # fallback: use the issue number
+            # fallback: use the anchor text (repo name)
+            try:
+                title = link_el.text.strip()
+            except:
+                title = "Untitled Issue"
 
-        # tags/metadata
+        # 2) **Metadata / Tags** — whatever lives in the issueContent block
         try:
-            desc_el = card.find_element(
+            meta_el = card.find_element(
                 By.CSS_SELECTOR,
                 "div[class*='Card_issueContent'], p, div[class*='meta']"
             )
-            description = desc_el.text.strip()
+            metadata = meta_el.text.strip()
         except:
-            description = ""
+            metadata = ""
 
-        # difficulty
-        labels = description.upper()
+        # 3) **Difficulty** based on labels
+        labels = metadata.upper()
         if "GOOD FIRST ISSUE" in labels:
             diff = "Beginner"
         elif any(x in labels for x in ("HARD", "DIFFICULT")):
@@ -73,7 +75,7 @@ def get_top_issues(driver, count=5):
         issues.append({
             "title": title,
             "link": link,
-            "description": description,
+            "metadata": metadata,
             "difficulty": diff
         })
 
